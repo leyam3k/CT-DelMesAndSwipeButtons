@@ -1,63 +1,190 @@
-// The main script for the extension
-// The following are examples of some basic extension functionality
+import { getContext } from "../../../extensions.js";
+import { deleteMessage } from "../../../../script.js";
 
-//You'll likely need to import extension_settings, getContext, and loadExtensionSettings from extensions.js
-import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
+const extensionName = "CT-DelMesAndSwipeButtons";
+const { eventSource, event_types, Popup } = getContext();
 
-//You'll likely need to import some other functions from the main script
-import { saveSettingsDebounced } from "../../../../script.js";
+/**
+ * Gets the chat object from the context.
+ * We get it fresh every time because the reference might change (though usually the array is mutated).
+ */
+function getChat() {
+  return getContext().chat;
+}
 
-// Keep track of where your extension is located, name should match repo name
-const extensionName = "st-extension-example";
-const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
-const extensionSettings = extension_settings[extensionName];
-const defaultSettings = {};
+/**
+ * Checks if a message has multiple swipes.
+ * @param {object} message - The message object.
+ * @returns {boolean}
+ */
+function hasMultipleSwipes(message) {
+  return Array.isArray(message.swipes) && message.swipes.length > 1;
+}
 
+/**
+ * Handles the Delete Message button click.
+ * @param {number} mesId - The ID of the message to delete.
+ */
+async function handleDeleteMessage(mesId) {
+  const confirm = await Popup.show.confirm(
+    "Are you sure you want to delete this message?",
+    "Delete Message"
+  );
+  if (confirm) {
+    // Pass false for askConfirmation to skip the built-in popup
+    await deleteMessage(mesId, undefined, false);
+  }
+}
 
- 
-// Loads the extension settings if they exist, otherwise initializes them to the defaults.
-async function loadSettings() {
-  //Create the settings if they don't exist
-  extension_settings[extensionName] = extension_settings[extensionName] || {};
-  if (Object.keys(extension_settings[extensionName]).length === 0) {
-    Object.assign(extension_settings[extensionName], defaultSettings);
+/**
+ * Handles the Delete Swipe button click.
+ * @param {number} mesId - The ID of the message.
+ */
+async function handleDeleteSwipe(mesId) {
+  const chat = getChat();
+  const message = chat[mesId];
+
+  if (!message) {
+    console.error(`[${extensionName}] Message not found: ${mesId}`);
+    return;
   }
 
-  // Updating settings in the UI
-  $("#example_setting").prop("checked", extension_settings[extensionName].example_setting).trigger("input");
-}
+  // Check if we can delete a swipe (must have > 1 swipes)
+  if (!hasMultipleSwipes(message)) {
+    // This shouldn't be reachable if we hide the button, but good for safety
+    toastr.warning(
+      "Cannot delete swipe: This message has only one version.",
+      "Delete Swipe"
+    );
+    return;
+  }
 
-// This function is called when the extension settings are changed in the UI
-function onExampleInput(event) {
-  const value = Boolean($(event.target).prop("checked"));
-  extension_settings[extensionName].example_setting = value;
-  saveSettingsDebounced();
-}
+  const swipeIndex = message.swipe_id ?? 0;
 
-// This function is called when the button is clicked
-function onButtonClick() {
-  // You can do whatever you want here
-  // Let's make a popup appear with the checked setting
-  toastr.info(
-    `The checkbox is ${extension_settings[extensionName].example_setting ? "checked" : "not checked"}`,
-    "A popup appeared because you clicked the button!"
+  const confirm = await Popup.show.confirm(
+    "Are you sure you want to delete this swipe?",
+    "Delete Swipe"
   );
+  if (confirm) {
+    // Pass swipeDeletionIndex and askConfirmation=false
+    await deleteMessage(mesId, swipeIndex, false);
+  }
 }
 
-// This function is called when the extension is loaded
+/**
+ * Injects the buttons into a message element.
+ * @param {jQuery} $mesElement - The jQuery object for the message element (.mes).
+ */
+function injectButtons($mesElement) {
+  const mesId = $mesElement.attr("mesid");
+  if (mesId === undefined) return;
+
+  // Check if buttons are already injected
+  if ($mesElement.find(`.ct-del-buttons`).length > 0) return;
+
+  // Target the .extraMesButtons container
+  const $extraButtons = $mesElement.find(".extraMesButtons");
+  if ($extraButtons.length === 0) return;
+
+  // Create the container for our buttons
+  const $myButtons = $(
+    `<div class="ct-del-buttons" style="display: contents;"></div>`
+  );
+
+  // Create Delete Swipe button
+  const $delSwipeBtn = $(`
+        <div title="Delete Swipe" class="mes_button mes_delete_swipe fa-solid fa-backspace interactable" tabindex="0" role="button"></div>
+    `);
+  $delSwipeBtn.on("click", () => handleDeleteSwipe(Number(mesId)));
+  $myButtons.append($delSwipeBtn);
+
+  // Create Delete Message button
+  const $delMesBtn = $(`
+        <div title="Delete Message" class="mes_button mes_delete_message fa-solid fa-trash-can interactable" tabindex="0" role="button"></div>
+    `);
+  $delMesBtn.on("click", () => handleDeleteMessage(Number(mesId)));
+  $myButtons.append($delMesBtn);
+
+  // Append to extraMesButtons
+  $extraButtons.append($myButtons);
+
+  // Initial check for swipe button visibility
+  updateSwipeButtonVisibility($mesElement);
+}
+
+/**
+ * Updates the visibility of the Delete Swipe button based on the number of swipes.
+ * @param {jQuery} $mesElement
+ */
+function updateSwipeButtonVisibility($mesElement) {
+  const mesId = $mesElement.attr("mesid");
+  if (mesId === undefined) return;
+
+  const chat = getChat();
+  const message = chat[mesId];
+
+  if (message) {
+    const $swipeBtn = $mesElement.find(".mes_delete_swipe");
+    if (hasMultipleSwipes(message)) {
+      $swipeBtn.show();
+    } else {
+      $swipeBtn.hide();
+    }
+  }
+}
+
+/**
+ * Scans the chat and injects buttons into all message elements.
+ */
+function scanAndInject() {
+  $("#chat .mes").each(function () {
+    injectButtons($(this));
+  });
+}
+
 jQuery(async () => {
-  // This is an example of loading HTML from a file
-  const settingsHtml = await $.get(`${extensionFolderPath}/example.html`);
+  // Initial scan
+  scanAndInject();
 
-  // Append settingsHtml to extensions_settings
-  // extension_settings and extensions_settings2 are the left and right columns of the settings menu
-  // Left should be extensions that deal with system functions and right should be visual/UI related 
-  $("#extensions_settings").append(settingsHtml);
+  // Listen for new messages rendered
+  eventSource.on(event_types.USER_MESSAGE_RENDERED, (mesId) => {
+    const $mes = $(`#chat .mes[mesid="${mesId}"]`);
+    injectButtons($mes);
+  });
 
-  // These are examples of listening for events
-  $("#my_button").on("click", onButtonClick);
-  $("#example_setting").on("input", onExampleInput);
+  eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, (mesId) => {
+    const $mes = $(`#chat .mes[mesid="${mesId}"]`);
+    injectButtons($mes);
+  });
 
-  // Load settings when starting things up (if you have any)
-  loadSettings();
+  // When chat is changed/loaded
+  eventSource.on(event_types.CHAT_CHANGED, () => {
+    // Wait a bit for render
+    setTimeout(scanAndInject, 100);
+  });
+
+  // Using a MutationObserver on the chat container
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === "childList") {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === 1 && $(node).hasClass("mes")) {
+            injectButtons($(node));
+          }
+        });
+      }
+    });
+  });
+
+  const chatContainer = document.getElementById("chat");
+  if (chatContainer) {
+    observer.observe(chatContainer, { childList: true });
+  }
+
+  // Use delegation on chat for mouseenter to ensure buttons are present and updated
+  // This covers cases where buttons might be wiped by re-renders or updates
+  $("#chat").on("mouseenter", ".mes", function () {
+    injectButtons($(this)); // Ensure buttons exist
+    updateSwipeButtonVisibility($(this)); // Update state
+  });
 });

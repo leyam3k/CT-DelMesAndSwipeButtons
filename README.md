@@ -1,33 +1,42 @@
-# SillyTavern Extension Example
+# CT-DelMesAndSwipeButtons
 
-*Provide a brief description of how your extension works, what problem it aims to solve.*
+A simple SillyTavern/CozyTavern extension that adds dedicated "Delete Message" and "Delete Swipe" buttons to the chat interface for easier access.
 
 ## Features
 
-*Describe some of the main selling points of your extension.*
+- **Delete Message Button**: Adds a trash can icon to every message, allowing for quick deletion without entering the edit menu.
+- **Delete Swipe Button**: Adds a backspace icon to messages with multiple swipes, allowing you to delete the current swipe version directly.
+- **Smart Visibility**: The "Delete Swipe" button only appears on messages that have more than one swipe.
+- **Safety**: Includes a confirmation popup before deleting to prevent accidental clicks.
 
-## Installation and Usage
+## Installation
 
-### Installation
+### Automatic Installation (Recommended)
 
-*In most cases, this should just be using ST's inbuilt extension installer.* 
+1. Open SillyTavern.
+2. Navigate to the **Extensions** menu.
+3. Click on **Install Extension**.
+4. Paste the repository URL: `https://github.com/leyam3k/CT-DelMesAndSwipeButtons`
+5. Click **Save**.
 
-### Usage
+### Manual Installation
 
-*Explain how to use this extension.*
+1. Navigate to your SillyTavern installation folder: `.../SillyTavern/public/scripts/extensions/third-party/`
+2. Clone this repository into a new folder named `CT-DelMesAndSwipeButtons`.
+   ```bash
+   git clone https://github.com/leyam3k/CT-DelMesAndSwipeButtons.git
+   ```
+3. Restart SillyTavern.
 
-## Prerequisites
+## Usage
 
-*Specify the version of ST necessary here.*
+Once installed, you will see two new buttons in the message toolbar (usually hidden under the "..." or visible on hover/selection depending on your theme settings):
 
-## Support and Contributions
+- <i class="fa-solid fa-trash-can"></i> **Delete Message**: Click to delete the entire message.
+- <i class="fa-solid fa-backspace"></i> **Delete Swipe**: Click to delete the currently displayed swipe (only visible if multiple swipes exist).
 
-*Where should someone ask for support?*
+Both actions will prompt for confirmation.
 
-*Consider including your own contact info for help/questions.*
+## Credits
 
-*How can people help add to this extension?*
-
-## License
-
-*Be cool, use an open source license.*
+Created by leyam3k.

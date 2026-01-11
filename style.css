@@ -1,1 +1,10 @@
-/* All style elements for your extension go here */
+/* Ensure the container for our buttons doesn't break the flex layout of extraMesButtons */
+.ct-del-buttons {
+  display: contents;
+}
+
+/* Add hover effect color for destructive actions */
+.mes_delete_swipe:hover,
+.mes_delete_message:hover {
+  color: var(--smart-theme-interaction-hover, #ff0000);
+}
